@@ -36,7 +36,7 @@ impl App<CrosstermBackend<Stdout>> {
 
         Self {
             running: false,
-            debug: true,
+            debug: false,
             terminal,
             events,
             logs,
@@ -61,6 +61,8 @@ impl App<CrosstermBackend<Stdout>> {
     }
 
     fn draw(&self, frame: &mut Frame) {
+        let horizontal_layout =
+            Layout::horizontal([Constraint::Min(20), Constraint::Percentage(100)]);
         let (main_area, borders) = if self.debug {
             let split = Layout::vertical([
                 Constraint::Percentage(50),
@@ -72,8 +74,7 @@ impl App<CrosstermBackend<Stdout>> {
             let height = log_area.height;
             let len = self.logs.len();
 
-            let log_top = Layout::horizontal([Constraint::Min(20), Constraint::Percentage(100)])
-                .split(split[1]);
+            let log_top = horizontal_layout.split(split[1]);
 
             let top_left_set = symbols::border::Set {
                 top_left: symbols::line::NORMAL.vertical_right,
@@ -106,8 +107,7 @@ impl App<CrosstermBackend<Stdout>> {
             (frame.area(), Borders::ALL)
         };
 
-        let split =
-            Layout::horizontal([Constraint::Min(20), Constraint::Percentage(100)]).split(main_area);
+        let split = horizontal_layout.split(main_area);
 
         let mut config_state = ListState::default();
 
