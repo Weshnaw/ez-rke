@@ -61,73 +61,63 @@ impl App<CrosstermBackend<Stdout>> {
     }
 
     fn draw(&self, frame: &mut Frame) {
-        let horizontal_layout =
-            Layout::horizontal([Constraint::Min(20), Constraint::Percentage(100)]);
-        let (main_area, borders) = if self.debug {
-            let split = Layout::vertical([
-                Constraint::Percentage(50),
-                Constraint::Min(1),
-                Constraint::Percentage(50),
-            ])
-            .split(frame.area());
-            let log_area = split[2];
+        let mut left_block = Block::new()
+            .borders(Borders::ALL ^ Borders::RIGHT)
+            .title("Configuration");
+
+        let (main_area, border_set) = if self.debug {
+            let split = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
+                .split(frame.area());
+
+            let border_set = symbols::border::Set {
+                bottom_left: symbols::line::NORMAL.vertical_right,
+                ..symbols::border::PLAIN
+            };
+
+            left_block = left_block
+                .title_bottom("Tracing Logs")
+                .border_set(border_set);
+
+            let log_area = split[1];
             let height = log_area.height;
             let len = self.logs.len();
-
-            let log_top = horizontal_layout.split(split[1]);
-
-            let top_left_set = symbols::border::Set {
-                top_left: symbols::line::NORMAL.vertical_right,
-                ..symbols::border::PLAIN
-            };
-
-            let top_right_set = symbols::border::Set {
-                top_left: symbols::line::NORMAL.horizontal_up,
-                top_right: symbols::line::NORMAL.vertical_left,
-                ..symbols::border::PLAIN
-            };
-
-            frame.render_widget(
-                Block::new()
-                    .borders(Borders::ALL ^ Borders::RIGHT)
-                    .border_set(top_left_set)
-                    .title("Tracing Logs"),
-                log_top[0],
-            );
-            frame.render_widget(
-                Block::new().borders(Borders::ALL).border_set(top_right_set),
-                log_top[1],
-            );
 
             let mut state = ListState::default()
                 .with_offset(len.saturating_sub((height as usize).saturating_sub(1)));
             frame.render_stateful_widget(self.draw_logs(), log_area, &mut state);
-            (split[0], (Borders::TOP | Borders::LEFT | Borders::RIGHT))
+
+            let border_set = symbols::border::Set {
+                bottom_left: symbols::line::NORMAL.horizontal_up,
+                bottom_right: symbols::line::NORMAL.vertical_left,
+                ..symbols::border::PLAIN
+            };
+            (split[0], border_set)
         } else {
-            (frame.area(), Borders::ALL)
+            let border_set = symbols::border::Set {
+                bottom_left: symbols::line::NORMAL.horizontal_up,
+                ..symbols::border::PLAIN
+            };
+            (frame.area(), border_set)
         };
 
-        let split = horizontal_layout.split(main_area);
+        let split =
+            Layout::horizontal([Constraint::Min(20), Constraint::Percentage(100)]).split(main_area);
 
         let mut config_state = ListState::default();
 
-        let left_block = Block::new()
-            .borders(borders ^ Borders::RIGHT)
-            .title("Configuration");
         frame.render_stateful_widget(
             List::new(vec!["Test config"]).block(left_block),
             split[0],
             &mut config_state,
         );
 
-        let (control_server_area, control_border_set) = if let Some(vip) = &self.config.servers.vip
-        {
+        let (control_server_area, border_set) = if let Some(vip) = &self.config.servers.vip {
             let split =
                 Layout::vertical([Constraint::Min(2), Constraint::Percentage(100)]).split(split[1]);
 
             let border_set = symbols::border::Set {
                 top_left: symbols::line::NORMAL.horizontal_down,
-                ..symbols::border::PLAIN
+                ..border_set
             };
 
             let block = Block::new()
@@ -140,9 +130,8 @@ impl App<CrosstermBackend<Stdout>> {
                 split[1],
                 symbols::border::Set {
                     top_left: symbols::line::NORMAL.vertical_right,
-                    bottom_left: symbols::line::NORMAL.horizontal_up,
                     top_right: symbols::line::NORMAL.vertical_left,
-                    ..symbols::border::PLAIN
+                    ..border_set
                 },
             )
         } else {
@@ -150,14 +139,13 @@ impl App<CrosstermBackend<Stdout>> {
                 split[1],
                 symbols::border::Set {
                     top_left: symbols::line::NORMAL.horizontal_down,
-                    bottom_left: symbols::line::NORMAL.horizontal_up,
                     ..symbols::border::PLAIN
                 },
             )
         };
 
-        let (control_server_area, borders) = if self.config.servers.worker.is_empty() {
-            (control_server_area, borders)
+        let (control_server_area, border_set, borders) = if self.config.servers.worker.is_empty() {
+            (control_server_area, border_set, Borders::ALL)
         } else {
             let split = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
                 .split(control_server_area);
@@ -172,14 +160,13 @@ impl App<CrosstermBackend<Stdout>> {
 
             let border_set = symbols::border::Set {
                 top_left: symbols::line::NORMAL.vertical_right,
-                bottom_left: symbols::line::NORMAL.horizontal_up,
                 top_right: symbols::line::NORMAL.vertical_left,
-                ..symbols::border::PLAIN
+                ..border_set
             };
 
             let block = Block::new()
                 .title("Worker Nodes")
-                .borders(borders)
+                .borders(Borders::ALL)
                 .border_set(border_set);
 
             let mut worker_state = ListState::default();
@@ -188,7 +175,8 @@ impl App<CrosstermBackend<Stdout>> {
                 split[1],
                 &mut worker_state,
             );
-            (split[0], (Borders::ALL ^ Borders::BOTTOM))
+
+            (split[0], border_set, (Borders::ALL ^ Borders::BOTTOM))
         };
 
         let control: Vec<&str> = if self.config.servers.control.is_empty() {
@@ -205,7 +193,7 @@ impl App<CrosstermBackend<Stdout>> {
         let block = Block::new()
             .title("Control Nodes")
             .borders(borders)
-            .border_set(control_border_set);
+            .border_set(border_set);
 
         let mut control_state = ListState::default();
         frame.render_stateful_widget(
