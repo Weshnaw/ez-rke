@@ -1,17 +1,15 @@
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    fs::OpenOptions,
-    sync::Arc,
-};
+use std::{collections::HashMap, fmt::Display, fs::OpenOptions, sync::Arc};
 
 use chrono::{DateTime, Local};
-use ratatui::{style::{Color, Style}, text::{Line, Span}, widgets::ListItem};
+use ratatui::{
+    style::{Color, Style},
+    text::{Line, Span},
+    widgets::ListItem,
+};
 use tracing::{
     field::{Field, Visit},
     info, Level,
 };
-
 
 use tracing_subscriber::{
     fmt,
@@ -32,9 +30,7 @@ where
     T: Send + Sync + 'static,
 {
     fn new(tx: flume::Sender<T>) -> Self {
-        Self {
-            tx
-        }
+        Self { tx }
     }
 }
 
@@ -113,7 +109,6 @@ impl<'a> From<&'a tracing::Event<'a>> for LogEvent {
 
 impl Display for LogEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        
         let _name = self.name.as_ref();
         let scope = if let Some(span) = &self.span {
             format!("{}:{}", self.target, span.scope)
@@ -148,10 +143,10 @@ impl From<&'_ LogEvent> for ListItem<'_> {
             Level::DEBUG => Style::default().fg(Color::Blue),
             Level::TRACE => Style::default().fg(Color::White),
             Level::WARN => Style::default().fg(Color::Yellow),
-            Level::ERROR => Style::default().fg(Color::Red)
+            Level::ERROR => Style::default().fg(Color::Red),
         };
 
-        let timestamp = event.timestamp.format("[%Y-%m-%d][%H:%M:%S]");
+        let timestamp = event.timestamp.format("[%Y-%m-%d][%H:%M:%S%.6f]");
         let level = event.level;
         let scope = if let Some(span) = &event.span {
             format!("{}:{}", event.target, span.scope)
@@ -162,7 +157,7 @@ impl From<&'_ LogEvent> for ListItem<'_> {
 
         let content = vec![Line::from(vec![
             Span::raw(timestamp.to_string()),
-            Span::styled(format!("{level:<5} "), style),
+            Span::styled(format!(" {level:<5} "), style),
             Span::raw(scope),
             Span::raw(format!(" {fields:?}")),
         ])];

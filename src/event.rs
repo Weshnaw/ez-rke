@@ -61,7 +61,7 @@ impl EventHandler {
             }
         });
 
-        Self { tx, rx  }
+        Self { tx, rx }
     }
 
     pub async fn next(&mut self) -> Event {
