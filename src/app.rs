@@ -26,7 +26,6 @@ where
     terminal: Arc<Mutex<Terminal<T>>>,
     events: EventHandler,
     logs: Vec<LogEvent>,
-    #[allow(dead_code)]
     config: Config,
 }
 
@@ -37,7 +36,7 @@ impl App<CrosstermBackend<Stdout>> {
 
         Self {
             running: false,
-            debug: false,
+            debug: true,
             terminal,
             events,
             logs,
@@ -63,12 +62,44 @@ impl App<CrosstermBackend<Stdout>> {
 
     fn draw(&self, frame: &mut Frame) {
         let (main_area, borders) = if self.debug {
-            let split = Layout::vertical([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(frame.area());
-            let log_area = split[1];
+            let split = Layout::vertical([
+                Constraint::Percentage(50),
+                Constraint::Min(1),
+                Constraint::Percentage(50),
+            ])
+            .split(frame.area());
+            let log_area = split[2];
             let height = log_area.height;
             let len = self.logs.len();
-            let mut state = ListState::default().with_offset(len.saturating_sub(height.into()));
+
+            let log_top = Layout::horizontal([Constraint::Min(20), Constraint::Percentage(100)])
+                .split(split[1]);
+
+            let top_left_set = symbols::border::Set {
+                top_left: symbols::line::NORMAL.vertical_right,
+                ..symbols::border::PLAIN
+            };
+
+            let top_right_set = symbols::border::Set {
+                top_left: symbols::line::NORMAL.horizontal_up,
+                top_right: symbols::line::NORMAL.vertical_left,
+                ..symbols::border::PLAIN
+            };
+
+            frame.render_widget(
+                Block::new()
+                    .borders(Borders::ALL ^ Borders::RIGHT)
+                    .border_set(top_left_set)
+                    .title("Tracing Logs"),
+                log_top[0],
+            );
+            frame.render_widget(
+                Block::new().borders(Borders::ALL).border_set(top_right_set),
+                log_top[1],
+            );
+
+            let mut state = ListState::default()
+                .with_offset(len.saturating_sub((height as usize).saturating_sub(1)));
             frame.render_stateful_widget(self.draw_logs(), log_area, &mut state);
             (split[0], (Borders::TOP | Borders::LEFT | Borders::RIGHT))
         } else {
@@ -191,19 +222,7 @@ impl App<CrosstermBackend<Stdout>> {
             .map(|s| s.into())
             .collect::<Vec<ListItem>>();
 
-        // Logs will be in the bottom half of the window
-        let collapsed_top_set = symbols::border::Set {
-            top_left: symbols::line::NORMAL.vertical_right,
-            top_right: symbols::line::NORMAL.vertical_left,
-            ..symbols::border::PLAIN
-        };
-
-        List::new(logs).block(
-            Block::new()
-                .border_set(collapsed_top_set)
-                .borders(Borders::ALL)
-                .title("Tracing Logs"),
-        )
+        List::new(logs).block(Block::new().borders(Borders::ALL ^ Borders::TOP))
     }
 
     async fn handle_events(&mut self) {
