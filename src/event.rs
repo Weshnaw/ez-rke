@@ -36,7 +36,8 @@ impl EventHandler {
 
                 tokio::select! {
                     _ = tick_delay => {
-                        tx.send(Event::Tick).unwrap()
+                        tx.send(Event::Tick).unwrap() // NOTE: Arguably I don't really need the
+                                                      // ticks
                     },
                     Some(Ok(event)) = crossterm_event => {
                         match event {

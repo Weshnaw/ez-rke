@@ -6,7 +6,7 @@ use std::{
 };
 
 use chrono::{DateTime, Local};
-use colored::Colorize;
+use ratatui::{style::{Color, Style}, text::{Line, Span}, widgets::ListItem};
 use tracing::{
     field::{Field, Visit},
     info, Level,
@@ -38,7 +38,7 @@ where
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct LogSpan {
     //target: Box<str>,
     //name: Box<str>,
@@ -46,11 +46,11 @@ struct LogSpan {
     scope: Arc<str>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct LogEvent {
     level: Level,
-    target: Box<str>,
-    name: Box<str>,
+    target: Arc<str>,
+    name: Arc<str>,
     fields: Fields,
     timestamp: DateTime<Local>,
     span: Option<LogSpan>,
@@ -64,8 +64,8 @@ impl LogEvent {
     }
 }
 
-#[derive(Debug)]
-struct Fields(HashMap<Box<str>, Box<str>>);
+#[derive(Clone, Debug)]
+struct Fields(HashMap<Arc<str>, Arc<str>>);
 
 impl Visit for Fields {
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
@@ -113,24 +113,15 @@ impl<'a> From<&'a tracing::Event<'a>> for LogEvent {
 
 impl Display for LogEvent {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        
+        let _name = self.name.as_ref();
         let scope = if let Some(span) = &self.span {
             format!("{}:{}", self.target, span.scope)
         } else {
             self.target.to_string()
         };
-
         let timestamp = self.timestamp.format("[%Y-%m-%d][%H:%M:%S]");
-
-        let _name = self.name.as_ref();
-
-        let level = match self.level {
-            Level::INFO => "INFO".green(),
-            Level::DEBUG => "DEBUG".white(),
-            Level::TRACE => "TRACE".yellow(),
-            Level::WARN => "WARN".red(),
-            Level::ERROR => "ERROR".red()
-        };
-
+        let level = self.level;
         let fields = &self.fields.0;
 
         write!(f, "{timestamp} {level:5} {scope:30.30} {fields:?}",)
@@ -147,6 +138,36 @@ where
             event = event.with_span(span.into())
         }
         self.tx.send(Event::Log(event)).ok();
+    }
+}
+
+impl From<&'_ LogEvent> for ListItem<'_> {
+    fn from(event: &'_ LogEvent) -> Self {
+        let style = match event.level {
+            Level::INFO => Style::default().fg(Color::Green),
+            Level::DEBUG => Style::default().fg(Color::Blue),
+            Level::TRACE => Style::default().fg(Color::White),
+            Level::WARN => Style::default().fg(Color::Yellow),
+            Level::ERROR => Style::default().fg(Color::Red)
+        };
+
+        let timestamp = event.timestamp.format("[%Y-%m-%d][%H:%M:%S]");
+        let level = event.level;
+        let scope = if let Some(span) = &event.span {
+            format!("{}:{}", event.target, span.scope)
+        } else {
+            event.target.to_string()
+        };
+        let fields = &event.fields.0;
+
+        let content = vec![Line::from(vec![
+            Span::raw(timestamp.to_string()),
+            Span::styled(format!("{level:<5} "), style),
+            Span::raw(scope),
+            Span::raw(format!(" {fields:?}")),
+        ])];
+
+        Self::new(content)
     }
 }
 
